@@ -16,8 +16,6 @@ module.exports = function (repoDir, opts) {
 
 function Git (repoDir, opts) {
     this.repoDir = repoDir;
-    this.autoCreate = opts.autoCreate === false ? false : true;
-    this.checkout = opts.checkout;
 }
 
 Git.prototype = new EventEmitter;
@@ -34,31 +32,8 @@ Git.prototype.listen = function () {
     return server;
 };
 
-Git.prototype.list = function (cb) {
-    fs.readdir(this.repoDir, cb);
-};
-
 Git.prototype.exists = function (repo, cb) {
     path.exists(path.join(this.repoDir, repo), cb);
-};
-
-Git.prototype.create = function (repo, cb) {
-    var cwd = process.cwd();
-    var dir = path.join(this.repoDir, repo);
-    if (this.checkout) {
-        var ps = spawn('git', [ 'init', dir ]);
-    } else {
-        var ps = spawn('git', [ 'init', '--bare', dir ]);
-    }
-    
-    var err = '';
-    ps.stderr.on('data', function (buf) { err += buf });
-    
-    ps.on('exit', function (code) {
-        if (!cb) {}
-        else if (code) cb(err || true)
-        else cb(null)
-    });
 };
 
 var services = [ 'upload-pack', 'receive-pack' ]
@@ -68,21 +43,19 @@ Git.prototype.handle = function (req, res, next) {
     var repoDir = self.repoDir;
     var u = url.parse(req.url);
     var params = qs.parse(u.query);
-    
+    var m;
+
     function noCache () {
         res.setHeader('expires', 'Fri, 01 Jan 1980 00:00:00 GMT');
         res.setHeader('pragma', 'no-cache');
         res.setHeader('cache-control', 'no-cache, max-age=0, must-revalidate');
     }
-    
-    var m;
+
     if (req.method === 'GET'
     && (m = u.pathname.match(/\/([^\/]+)\/info\/refs$/))) {
-        var repo = m[1];
-        var repopath = self.checkout
-            ? path.join(repoDir, repo, '.git')
-            : path.join(repoDir, repo)
-        ;
+        // Strip out the .git if present
+        var repo = m[1].replace(/(.*)\.(.*?)$/, "$1");
+        var repopath = path.join(repoDir, repo);
         
         if (!params.service) {
             res.statusCode = 400;
@@ -106,8 +79,7 @@ Git.prototype.handle = function (req, res, next) {
         };
         
         self.exists(repo, function (exists) {
-            if (!exists && self.autoCreate) self.create(repo, next)
-            else if (!exists) {
+            if (!exists) {
                 res.statusCode = 404;
                 res.setHeader('content-type', 'text/plain');
                 res.end('repository not found');
@@ -117,11 +89,8 @@ Git.prototype.handle = function (req, res, next) {
     }
     else if (req.method === 'GET'
     && (m = u.pathname.match(/^\/([^\/]+)\/HEAD$/))) {
-        var repo = m[1];
-        var repopath = self.checkout
-            ? path.join(repoDir, repo, '.git')
-            : path.join(repoDir, repo)
-        ;
+        var repo = m[1].replace(/(.*)\.(.*?)$/, "$1");
+        var repopath = path.join(repoDir, repo);
         
         var next = function () {
             var file = path.join(repopath, 'HEAD');
@@ -135,8 +104,7 @@ Git.prototype.handle = function (req, res, next) {
         }
         
         self.exists(repo, function(exists) {
-            if (!exists && self.autoCreate) self.create(repo, next)
-            else if (!exists) {
+            if (!exists) {
                 res.statusCode = 404;
                 res.setHeader('content-type', 'text/plain');
                 res.end('repository not found');
@@ -146,11 +114,9 @@ Git.prototype.handle = function (req, res, next) {
     }
     else if (req.method === 'POST'
     && (m = req.url.match(/\/([^\/]+)\/git-(.+)/))) {
-        var repo = m[1], service = m[2];
-        var repopath = self.checkout
-            ? path.join(repoDir, repo, '.git')
-            : path.join(repoDir, repo)
-        ;
+        var repo = m[1].replace(/(.*)\.(.*?)$/, "$1");
+        var service = m[2];
+        var repopath = path.join(repoDir, repo);
         
         if (services.indexOf(service) < 0) {
             res.statusCode = 405;
@@ -170,13 +136,10 @@ Git.prototype.handle = function (req, res, next) {
         ps.stdout.pipe(res);
         ps.on('exit', function (code) {
             if (service === 'receive-pack') {
-                if (self.checkout) {
-                    var opts = { cwd : path.join(repoDir, repo) };
-                    exec('git reset --hard', opts, function () {
-                        self.emit('push', repo);
-                    });
-                }
-                else self.emit('push', repo)
+                self.emit('push', repo)
+            }
+            else if (service == 'upload-pack') {
+                self.emit('clone', repo)
             }
         });
         
@@ -213,3 +176,4 @@ function serviceRespond (service, file, res) {
     ps.stderr.pipe(res, { end : false });
     ps.on('exit', function () { res.end() });
 }
+

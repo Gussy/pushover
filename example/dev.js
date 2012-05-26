@@ -1,4 +1,4 @@
-var pushover = require('pushover');
+var pushover = require('../');
 var repos = pushover(__dirname + '/repos');
 
 repos.on('push', function (repo) {

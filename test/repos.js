@@ -11,20 +11,28 @@ test('create, push to, and clone a repo', function (t) {
     t.plan(2);
     
     var repoDir = '/tmp/' + Math.floor(Math.random() * (1<<30)).toString(16);
+    var repoDirRepo = path.join(repoDir, 'doom');
     var srcDir = '/tmp/' + Math.floor(Math.random() * (1<<30)).toString(16);
     var dstDir = '/tmp/' + Math.floor(Math.random() * (1<<30)).toString(16);
-    
+
     fs.mkdirSync(repoDir, 0700);
+    fs.mkdirSync(repoDirRepo, 0700);
     fs.mkdirSync(srcDir, 0700);
     fs.mkdirSync(dstDir, 0700);
     
-    var repos = pushover(repoDir, { autoCreate : false });
+    var repos = pushover(repoDir);
     var port = Math.floor(Math.random() * ((1<<16) - 1e4)) + 1e4;
     var server = repos.listen(port);
-    
+
     process.chdir(srcDir);
     seq()
-        .seq(function () { repos.create('doom', this) })
+        .seq(function () {
+            process.chdir(repoDirRepo);
+            var ps = spawn('git', [ 'init', '--bare' ]);
+            ps.stderr.pipe(process.stderr, { end : false });
+            ps.on('exit', this.ok);
+            process.chdir(srcDir);
+        })
         .seq(function () {
             var ps = spawn('git', [ 'init' ]);
             ps.stderr.pipe(process.stderr, { end : false });

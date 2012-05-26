@@ -3,9 +3,15 @@ pushover
 
 Serve up git repositories over http and accept git pushes.
 
-[![build status](https://secure.travis-ci.org/substack/pushover.png)](http://travis-ci.org/substack/pushover)
-
 This library makes it super easy to set up custom git push deploy logic.
+
+this fork
+=========
+
+[![build status](https://secure.travis-ci.org/Gussy/pushover.png)](http://travis-ci.org/Gussy/pushover)
+
+This fork aims to be an even more simplified Git-Smart-HTTP server used for
+super-fast serving of Git repositories.
 
 example
 =======
@@ -19,6 +25,10 @@ var repos = pushover(__dirname + '/repos');
 
 repos.on('push', function (repo) {
     console.log('received a push to ' + repo);
+});
+
+repos.on('clone', function (repo) {
+    console.log('transmitted a clone of ' + repo);
 });
 
 repos.listen(7000);
@@ -56,20 +66,14 @@ methods
 
 var pushover = require('pushover')
 
-var repos = pushover(repoDir, opts={autoCreate:true})
+var repos = pushover(repoDir, opts)
 -----------------------------------------------------
 
 Create a new repository collection from the directory `repoDir`.
 `repoDir` should be entirely empty except for git repo directories.
 
-`repos` is an EventEmitter. Right now it only emits "push" events with the repo
-name as the only argument.
-
-By default, repository targets will be created if they don't exist. You can
-disable that behavior with `opts.autoCreate`.
-
-If `opts.checkout` is true, create and expected checked-out repos instead of
-bare repos.
+`repos` is an EventEmitter. Right now it only emits "push" and "clone" events
+with the repo name as the only argument.
 
 repos.handle(req, res, next)
 ----------------------------
@@ -86,30 +90,10 @@ Create and return a new http server using `repos.handle`.
 
 Any arguments will be passed to `server.listen()`.
 
-repos.create(repoName, cb)
---------------------------
-
-Create a new bare repository `repoName` in the instance repository directory.
-
-Optionally get a callback `cb(err)` to be notified when the repository was
-created.
-
-repos.list(cb) 
---------------
-
-Get a list of all the repositories in the callback `cb(err, repos)`.
-
 repos.exists(repoName, cb)
 --------------------------
 
 Find out whether `repoName` exists in the callback `cb(exists)`.
-
-install
-=======
-
-With [npm](http://npmjs.org) do:
-
-    npm install pushover
 
 license
 =======
@@ -122,3 +106,4 @@ kudos
 Reading through
 [grack](https://github.com/schacon/grack/blob/master/lib/git_http.rb)
 was super handy.
+For the initial project, [substack](https://github.com/substack)

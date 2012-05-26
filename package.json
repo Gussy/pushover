@@ -1,10 +1,10 @@
 {
     "name" : "pushover",
     "description" : "git push deploy server over http",
-    "version" : "0.1.2",
+    "version" : "0.2.2",
     "repository" : {
         "type" : "git",
-        "url" : "git://github.com/substack/pushover.git"
+        "url" : "git://github.com/gussy/pushover.git"
     },
     "main" : "index.js",
     "keywords" : [
@@ -24,9 +24,9 @@
         "test" : "tap test/*.js"
     },
     "dependencies" : {
-        "seq" : "0.3.x"
     },
     "devDependencies" : {
+        "seq" : "0.3.x",
         "tap" : "0.0.x"
     },
     "engines" : {
